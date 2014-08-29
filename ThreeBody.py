@@ -1,3 +1,8 @@
+# Restricted three-body Poincare Mapper
+# Alex Rowe
+# University of California, Santa Cruz, 2014
+# Python 3.4
+
 from numpy import *
 from itertools import product
 from multiprocessing import pool
@@ -16,11 +21,14 @@ r_j = m_s	  # Position of Jupiter
 w_j = 1       # Angular speed of Jupiter
 
 orbits = 100  # Number of orbits to run the simulation for
+
 tol = 1e-12	  # Error Tolerance
 
 pools = 6     # Maximum number of threads to use
 
 filename = 'lagrange.dat'  # File to either contnue or start
+
+writemode = 'wb' # Default writes to a new file
 
 if len(sys.argv) > 1:
 	filename = sys.argv[1]
@@ -33,37 +41,26 @@ if len(sys.argv) > 3:
 
 
 def main():
-	# mn=.5
-	# x=1
-	# R = list()
-	# for r in range(0,100):
-	# 	R.append((1-x)*(mx-mn)+mn)
-	# 	x*=.95
 
-	# print(R)
-	# R=[.86515,.86530,.86533,.865345,.86536]
-	# cj = 3.07
-	# init = [(r, cj) for r in R] 
+	x0 = [.55]
 
-
-	x0 = [.83293]
-
-	xd = arange(.17726,.17727,.000001)
-	# xd = [0.178025845]
-	# xd = [.1785, .1775, .1765, .1755, .1745, .1735, .1725]
 	cj = [3.07]
 
-	init = product(x0,cj,xd)
+	init = product(x0,cj)
 
-	# trace(init[0][0],init[0][1])
-	# init = continueCalc()
+	# trace(X(0.5,3.07))
 
-	init = [lagrangian()]
 	p = pool.Pool(pools)
 	p.map(orbitCalc, init)
-	print("Round Complete")
+
+	# continueCalc will append orbits to a data file already started
+	#p.map(continueCalc, init)
+
 
 def continueCalc():
+	global writemode
+	writemode = 'ab'
+
 	print("Continuing calculation for",filename)
 	print("Adding",orbits,"orbits")
 
@@ -83,7 +80,6 @@ def continueCalc():
 		if not (x0,cj) in counted:
 			counted.append((x0,cj))
 			init_vectors.append(row)
-	print (mx)
 	return init_vectors
 
 
@@ -123,7 +119,6 @@ def orbitCalc(init):
 
 	print('Calculating x0=',x0,', Cj=',cj)
 
-
 	t = time.time() # time the process 
 
 	x_mat = ode(x,h,T) # magic happens here
@@ -140,7 +135,7 @@ def orbitCalc(init):
 	orbit_mat = col_append( orbit_mat, x0 )
 	orbit_mat = col_append( orbit_mat, cj )
 
-	f = open(filename, 'ab')
+	f = open(filename, 'wb')
 	savetxt(f, orbit_mat, delimiter=' ')
 	f.close()
 
@@ -149,7 +144,6 @@ def orbitCalc(init):
 
 # Calculates Cj for debugging purposes
 def Cj(x):
-
 
 	ds = dist([ x[0],x[1] ], [ r_s, 0 ])
 	dj = dist([ x[0],x[1] ], [ r_j, 0 ])
@@ -248,18 +242,6 @@ def f(x,t):
 		1                # time
 		]))
 
-# Locates all crossings of the y axis
-# requires a positively oriented rotation (ccw)
-# def markOrbit2(x_mat, precision = 1e-6):
-# 	x_vect = x_mat.T
-
-# 	for i in range(0, len(x_mat)-1):
-# 		#                                                   This is the Y velocity 
-# 		if x_vect[1][i] <= 0 and x_vect[1][i+1] > 0 and x_vect[3][i] > 0 and x_vect[3][i+1] > 0:
-# 				yield locateZero(x_mat[i], x_mat[i+1], precision) 
-
-# def markOrbit(x_mat):
-# 	return [o for o in markOrbit2(x_mat)]
 
 # Locates all crossings of the y axis
 # requires a positively oriented rotation (ccw)
@@ -337,12 +319,9 @@ def orbitTimer(x,  time = 100):
 	return time/len(orbit_mat) 
 
 
-def trace(x,cj, time=1000,name=None, xd=0):
-	# result = ode(X(x,cj,xd),.01,time)
-	# result = ode( X(x,cj,xd) ,.01,time)
-	result = ode( lagrangian() ,0.01, time)
+def trace(x, time=1000,name=None, xd=0):
+	result = ode( x, 0.01, time)
 	plt.plot(result.T[0],result.T[1],color=(0,0,0))
-	# plt.axis([-1,1,-1,1])
 	plt.xlabel("x")
 	plt.ylabel("y")
 	plt.legend()
@@ -369,19 +348,6 @@ def dist(a1,b1):
 	b = array(b1)
 	c = linalg.norm(a-b)
 	return c
-
-def lagrangian():
-	# x = r_j*cos(pi/3)
-	# y = .54*r_j*sin(pi/3)
-
-	x = 1.1
-	y=0
-
-	vx = 0
-	vy = 0
-
-
-	return array([x,y,vx,vy,0])
 
 
 if __name__=='__main__' :
